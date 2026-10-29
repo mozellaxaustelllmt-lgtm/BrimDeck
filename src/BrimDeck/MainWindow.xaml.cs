@@ -586,9 +586,10 @@ public partial class MainWindow : Window
         var style = shape.Style;
         bool line = style == CompactStyle.Line, indicator = !expanded && line;
         BrimDeck.Core.Diag.Log(string.Format(
-            "setExpanded expanded={0} ctx={1} behavior={2} effective={3} suppressed={4} vis={5} surface=({6:0.#},{7:0.#},{8:0.#}x{9:0.#}) scale={10:0.##} offset={11:0.#} style={12}",
-            expanded, _context, Settings.Behavior(_context, _host.App.Name, _host.App.Path), EffectiveStyle, IsSuppressed, IsVisible,
-            shape.Surface.X, shape.Surface.Y, shape.Surface.Width, shape.Surface.Height, _scale, _windowOffset, Settings.Style));
+            "setExpanded expanded={0} ctx={1} behavior={2} effective={3} suppressed={4} vis={5} surface=({6:0.#},{7:0.#},{8:0.#}x{9:0.#}) scale={10:0.##} offset={11:0.#} style={12} app={13} kind={14}",
+            expanded, _context, Settings.Behavior(_context, _host.App.Name, _host.App.Path, _host.BackgroundKind), EffectiveStyle, IsSuppressed, IsVisible,
+            shape.Surface.X, shape.Surface.Y, shape.Surface.Width, shape.Surface.Height, _scale, _windowOffset, Settings.Style,
+            _host.App.Name, _host.BackgroundKind));
         try
         {
             var p0 = Island.PointToScreen(new Point(0, 0));
