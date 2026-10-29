@@ -7,10 +7,15 @@ namespace BrimDeck.Core;
 // Rows is a compact list for a source with many small numbers: one card holds a table of them instead of one card each.
 public enum MetricKind { Percent, Balance, Spend, Count, Text, Rows }
 
-// One line of a Rows metric: a name, what it reads, an optional note and an optional used share for the short bar beside it.
-// Remaining draws that bar as what is left instead of what is used, for a line whose reading is itself the remainder
+// One line of a Rows metric: a name, what it reads, an optional set of short cells and an optional used share for the short
+// bar beside it. The cells are what keeps a table readable: the tenth cell of every line shares a column, so a line that has
+// nothing for that column leaves it empty rather than shifting its neighbours about.
+// Remaining draws the bar as what is left instead of what is used, for a line whose reading is itself the remainder
 // ("6,050 / 6,762"): the bar then tells the same story as the number beside it, and the colour still follows the used share.
-public sealed record MetricRow(string Label, string Value = "", string Note = "", double? Percent = null, bool Remaining = false);
+public sealed record MetricRow(string Label, string Value = "", string Note = "", double? Percent = null, bool Remaining = false)
+{
+    public IReadOnlyList<string> Cells { get; init; } = [];
+}
 
 public sealed record UsageMetric(MetricKind Kind, string Label)
 {
@@ -152,8 +157,12 @@ public static class MetricParser
             var share = entry.Get("percent");
             double? percent = share.ValueKind == JsonValueKind.Number && share.TryGetDouble(out var value) && double.IsFinite(value) ? Math.Clamp(value, 0, 100) : null;
             var remaining = entry.Get("remaining");
+            var cells = new List<string>();
+            if (entry.Get("cells").ValueKind == JsonValueKind.Array)
+                foreach (var cell in entry.Get("cells").EnumerateArray().Take(6))
+                    if (cell.ValueKind == JsonValueKind.String) cells.Add(Short(cell.GetString()!.Trim()));
             rows.Add(new MetricRow(name, Short(entry.Get("value").Text()), Short(entry.Get("note").Text()), percent,
-                remaining.ValueKind == JsonValueKind.True));
+                remaining.ValueKind == JsonValueKind.True) { Cells = cells });
         }
         if (rows.Count == 0) throw new InvalidDataException(Loc.T("rows 为空，至少要有一行。", "rows is empty; at least one row is needed."));
         return rows;

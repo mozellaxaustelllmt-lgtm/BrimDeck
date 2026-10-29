@@ -532,36 +532,43 @@ public partial class MainWindow
         return block;
     }
 
-    // A compact table: one line per row — the name on the left, its reading on the right, an optional note in between and a
-    // short bar for the rows that carry a used share. A source with many small numbers (one per account, say) reads better
-    // as one table than as a card each, which would cost a page turn per two of them. The lines share the height the
-    // column gives, so the table fits the panel rather than running off the bottom of it. The bar sits in the line, at the
-    // height of the text: a full-width track under each line would want vertical room a table this dense does not have.
+    // A compact table: one line per row — the name on the left, its reading on the right, short cells in between and a
+    // short bar for the lines that carry a used share. A source with many small numbers (one per account, say) reads better
+    // as one table than as a card each, which would cost a page turn per two of them.
+    //
+    // One grid holds the whole table, so a cell's column is as wide as the widest line that has anything in it: the second
+    // cell of every line then starts at the same place, and a line with nothing for that column leaves it empty instead of
+    // shifting the rest about. The lines share the height the column gives, so the table fits the panel rather than running
+    // off the bottom of it, and the bar sits in the line at the height of the text: a track under each line would want
+    // vertical room a table this dense does not have.
     private static Grid RowsBlock(AppEntry entry, UsageMetric quota, Layout layout)
     {
         var block = new Grid();
         double size = Math.Max(11, layout.Reset - 1);
+        int cellCount = quota.Rows.Count == 0 ? 0 : quota.Rows.Max(row => row.Cells.Count);
+        block.ColumnDefinitions.Add(new ColumnDefinition());
+        for (int c = 0; c < cellCount; c++) block.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        block.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        block.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         for (int i = 0; i < quota.Rows.Count; i++)
         {
             var row = quota.Rows[i];
             block.RowDefinitions.Add(new RowDefinition());
-            var line = new Grid();
-            line.ColumnDefinitions.Add(new ColumnDefinition());
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var name = UI.Centered(row.Label, size, UI.Secondary);
             name.HorizontalAlignment = HorizontalAlignment.Left; name.VerticalAlignment = VerticalAlignment.Center;
             name.Margin = new Thickness(0, 0, 8, 0); name.ToolTip = row.Label;
-            line.Children.Add(name);
-            if (row.Note.Length > 0)
+            Grid.SetRow(name, i); Grid.SetColumn(name, 0); block.Children.Add(name);
+            // A line written before cells existed still fills the first cell with its note.
+            var cells = row.Cells.Count > 0 ? row.Cells : row.Note.Length > 0 ? [row.Note] : [];
+            for (int c = 0; c < cells.Count; c++)
             {
-                var note = UI.Centered(row.Note, Math.Max(10.5, size - 1), UI.Tertiary, font: UI.PanelFont);
-                note.HorizontalAlignment = HorizontalAlignment.Right; note.VerticalAlignment = VerticalAlignment.Center;
-                note.Margin = new Thickness(0, 0, 10, 0);
-                Grid.SetColumn(note, 1); line.Children.Add(note);
+                if (cells[c].Length == 0) continue;
+                var cell = UI.Centered(cells[c], Math.Max(10.5, size - 1), UI.Tertiary, font: UI.PanelFont);
+                cell.HorizontalAlignment = HorizontalAlignment.Right; cell.VerticalAlignment = VerticalAlignment.Center;
+                cell.Margin = new Thickness(14, 0, 0, 0);
+                Grid.SetRow(cell, i); Grid.SetColumn(cell, 1 + c); block.Children.Add(cell);
             }
-            // Only a row past the warning level takes the readout colour: the rest stays as legible as the name.
+            // Only a line past the warning level takes the readout colour: the rest stays as legible as the name.
             double used = Math.Clamp(row.Percent ?? 0, 0, 100);
             bool alerting = row.Percent is not null && AppPresets.Level(used) > 0;
             if (row.Percent is not null)
@@ -570,19 +577,17 @@ public partial class MainWindow
                 // follows the used share, so a line that is running out turns yellow and then red as the bar empties.
                 double fill = row.Remaining ? (100 - used) / 100 : used / 100;
                 var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", fill, PanelTheme.QuotaColor(entry, used))
-                { Width = BarWidth, Height = 3, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
-                Grid.SetColumn(bar, 2); line.Children.Add(bar);
+                { Width = BarWidth, Height = 3, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 10, 0) };
+                Grid.SetRow(bar, i); Grid.SetColumn(bar, 1 + cellCount); block.Children.Add(bar);
             }
             var value = UI.Centered(row.Value, size, alerting ? PanelTheme.QuotaColor(entry, used) : UI.Primary,
                 alerting ? FontWeights.SemiBold : null);
             value.HorizontalAlignment = HorizontalAlignment.Right; value.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(value, 3); line.Children.Add(value);
-            Grid.SetRow(line, i);
-            block.Children.Add(line);
+            Grid.SetRow(value, i); Grid.SetColumn(value, 2 + cellCount); block.Children.Add(value);
         }
         return block;
     }
-    // The width of a table line's own bar. Short on purpose: it reads at a glance without needing a track of its own.
+    // The width of a line's own bar. Short on purpose: it reads at a glance without needing a track of its own.
     private const double BarWidth = 34;
 
     // The row's off-peak periods, written as the settings write them.
