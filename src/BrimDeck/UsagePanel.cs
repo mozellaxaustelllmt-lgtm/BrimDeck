@@ -352,7 +352,13 @@ public partial class MainWindow
         column.Children.Add(head);
 
         FrameworkElement body;
-        if (off)
+        if (!off && view.Quotas.Count == 1 && view.Quotas[0].Kind == MetricKind.Rows)
+        {
+            // A table takes the whole body rather than a slot's share of it: its lines then divide whatever height the column
+            // has, so the list fits the panel instead of running off the bottom of it.
+            body = QuotaBlock(entry, view.Quotas[0], layout, 0);
+        }
+        else if (off)
         {
             var status = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             status.Children.Add(UI.Fixed(snapshot.StatusLabel, Math.Max(11, layout.Label + 1), Math.Ceiling(layout.Label * 1.5), UI.Secondary, FontWeights.SemiBold));
@@ -528,48 +534,57 @@ public partial class MainWindow
 
     // A compact table: one line per row — the name on the left, its reading on the right, an optional note in between and a
     // thin bar for the rows that carry a used share. A source with many small numbers (one per account, say) reads better
-    // as one table than as a card each, which would cost a page turn per two of them.
+    // as one table than as a card each, which would cost a page turn per two of them. The lines share the height the
+    // column gives, so the table fits the panel rather than running off the bottom of it; a line with a bar keeps that bar
+    // in a strip of its own, clear of the text.
     private static Grid RowsBlock(AppEntry entry, UsageMetric quota, Layout layout)
     {
         var block = new Grid();
-        double size = Math.Max(10, layout.Reset);
-        double lineHeight = Math.Max(13, size + 3);
+        double size = Math.Max(11, layout.Reset - 1);
         for (int i = 0; i < quota.Rows.Count; i++)
         {
             var row = quota.Rows[i];
-            block.RowDefinitions.Add(new RowDefinition { Height = new GridLength(lineHeight) });
-            var line = new Grid();
+            block.RowDefinitions.Add(new RowDefinition());
+            bool hasBar = row.Percent is not null;
+            var cell = new Grid();
+            cell.RowDefinitions.Add(new RowDefinition());
+            if (hasBar) cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(BarStrip) });
+            var line = new Grid { Margin = new Thickness(0, 0, 0, hasBar ? BarGap : 0) };
             line.ColumnDefinitions.Add(new ColumnDefinition());
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var name = UI.Fixed(row.Label, size, lineHeight, UI.Secondary);
-            name.HorizontalAlignment = HorizontalAlignment.Left; name.Margin = new Thickness(0, 0, 8, 0);
-            name.ToolTip = row.Label;
+            var name = UI.Centered(row.Label, size, UI.Secondary);
+            name.HorizontalAlignment = HorizontalAlignment.Left; name.VerticalAlignment = VerticalAlignment.Center;
+            name.Margin = new Thickness(0, 0, 8, 0); name.ToolTip = row.Label;
             line.Children.Add(name);
             if (row.Note.Length > 0)
             {
-                var note = UI.Fixed(row.Note, Math.Max(10, size - 1), lineHeight, UI.Tertiary, font: UI.PanelFont);
-                note.HorizontalAlignment = HorizontalAlignment.Right; note.Margin = new Thickness(0, 0, 10, 0);
+                var note = UI.Centered(row.Note, Math.Max(10.5, size - 1), UI.Tertiary, font: UI.PanelFont);
+                note.HorizontalAlignment = HorizontalAlignment.Right; note.VerticalAlignment = VerticalAlignment.Center;
+                note.Margin = new Thickness(0, 0, 10, 0);
                 Grid.SetColumn(note, 1); line.Children.Add(note);
             }
             // Only a row past the warning level takes the readout colour: the rest stays as legible as the name.
             double used = Math.Clamp(row.Percent ?? 0, 0, 100);
             bool alerting = row.Percent is not null && AppPresets.Level(used) > 0;
-            var value = UI.Fixed(row.Value, size, lineHeight, alerting ? PanelTheme.QuotaColor(entry, used) : UI.Primary,
+            var value = UI.Centered(row.Value, size, alerting ? PanelTheme.QuotaColor(entry, used) : UI.Primary,
                 alerting ? FontWeights.SemiBold : null);
-            value.HorizontalAlignment = HorizontalAlignment.Right;
+            value.HorizontalAlignment = HorizontalAlignment.Right; value.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(value, 2); line.Children.Add(value);
-            if (row.Percent is { } percent)
+            cell.Children.Add(line);
+            if (hasBar)
             {
-                var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", percent / 100, PanelTheme.QuotaColor(entry, used))
-                { Height = 2, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 1) };
-                line.Children.Add(bar);
+                var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", used / 100, PanelTheme.QuotaColor(entry, used))
+                { Height = 2, VerticalAlignment = VerticalAlignment.Top };
+                Grid.SetRow(bar, 1); cell.Children.Add(bar);
             }
-            Grid.SetRow(line, i);
-            block.Children.Add(line);
+            Grid.SetRow(cell, i);
+            block.Children.Add(cell);
         }
         return block;
     }
+    // The strip a table line keeps for its bar, and the space kept above it so the bar never touches the line's text.
+    private const double BarStrip = 2, BarGap = 4;
 
     // The row's off-peak periods, written as the settings write them.
     private static string OffPeakTooltip(AppEntry entry) => Loc.T("低峰时间：", "Off-peak time: ") + string.Join(Loc.T("、", ", "), entry.OffPeak.Select(period =>
