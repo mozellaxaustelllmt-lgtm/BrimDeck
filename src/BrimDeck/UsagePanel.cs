@@ -533,10 +533,10 @@ public partial class MainWindow
     }
 
     // A compact table: one line per row — the name on the left, its reading on the right, an optional note in between and a
-    // thin bar for the rows that carry a used share. A source with many small numbers (one per account, say) reads better
+    // short bar for the rows that carry a used share. A source with many small numbers (one per account, say) reads better
     // as one table than as a card each, which would cost a page turn per two of them. The lines share the height the
-    // column gives, so the table fits the panel rather than running off the bottom of it; a line with a bar keeps that bar
-    // in a strip of its own, clear of the text.
+    // column gives, so the table fits the panel rather than running off the bottom of it. The bar sits in the line, at the
+    // height of the text: a full-width track under each line would want vertical room a table this dense does not have.
     private static Grid RowsBlock(AppEntry entry, UsageMetric quota, Layout layout)
     {
         var block = new Grid();
@@ -545,12 +545,9 @@ public partial class MainWindow
         {
             var row = quota.Rows[i];
             block.RowDefinitions.Add(new RowDefinition());
-            bool hasBar = row.Percent is not null;
-            var cell = new Grid();
-            cell.RowDefinitions.Add(new RowDefinition());
-            if (hasBar) cell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(BarStrip) });
-            var line = new Grid { Margin = new Thickness(0, 0, 0, hasBar ? BarGap : 0) };
+            var line = new Grid();
             line.ColumnDefinitions.Add(new ColumnDefinition());
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var name = UI.Centered(row.Label, size, UI.Secondary);
@@ -567,24 +564,23 @@ public partial class MainWindow
             // Only a row past the warning level takes the readout colour: the rest stays as legible as the name.
             double used = Math.Clamp(row.Percent ?? 0, 0, 100);
             bool alerting = row.Percent is not null && AppPresets.Level(used) > 0;
+            if (row.Percent is not null)
+            {
+                var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", used / 100, PanelTheme.QuotaColor(entry, used))
+                { Width = BarWidth, Height = 3, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+                Grid.SetColumn(bar, 2); line.Children.Add(bar);
+            }
             var value = UI.Centered(row.Value, size, alerting ? PanelTheme.QuotaColor(entry, used) : UI.Primary,
                 alerting ? FontWeights.SemiBold : null);
             value.HorizontalAlignment = HorizontalAlignment.Right; value.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(value, 2); line.Children.Add(value);
-            cell.Children.Add(line);
-            if (hasBar)
-            {
-                var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", used / 100, PanelTheme.QuotaColor(entry, used))
-                { Height = 2, VerticalAlignment = VerticalAlignment.Top };
-                Grid.SetRow(bar, 1); cell.Children.Add(bar);
-            }
-            Grid.SetRow(cell, i);
-            block.Children.Add(cell);
+            Grid.SetColumn(value, 3); line.Children.Add(value);
+            Grid.SetRow(line, i);
+            block.Children.Add(line);
         }
         return block;
     }
-    // The strip a table line keeps for its bar, and the space kept above it so the bar never touches the line's text.
-    private const double BarStrip = 2, BarGap = 4;
+    // The width of a table line's own bar. Short on purpose: it reads at a glance without needing a track of its own.
+    private const double BarWidth = 34;
 
     // The row's off-peak periods, written as the settings write them.
     private static string OffPeakTooltip(AppEntry entry) => Loc.T("低峰时间：", "Off-peak time: ") + string.Join(Loc.T("、", ", "), entry.OffPeak.Select(period =>
