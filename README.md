@@ -1,3 +1,5 @@
+> **Personal fork, developed on its own `1.3.x` line.** `main` here is upstream v1.2.2 plus local patches — folding when a window behind the foreground fills the screen, click-to-expand, a larger click target, and per-app rules for background windows. The upstream project and its releases are at [MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck).
+
 <div align="center">
 
 <a href="README.md"><img src="https://img.shields.io/badge/English-0A84FF?style=for-the-badge" alt="English"></a>

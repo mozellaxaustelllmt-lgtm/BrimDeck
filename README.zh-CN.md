@@ -1,3 +1,5 @@
+> **个人分支，走自己的 `1.3.x` 主线。** 这里的 `main` = 上游 v1.2.2 + 本地补丁——后台有窗口铺满屏幕时折叠、点击展开、放大点击热区、后台窗口按各自应用规则处理。上游项目与正式发布见 [MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck)。
+
 <div align="center">
 
 <a href="README.md"><img src="https://img.shields.io/badge/English-3A3A3C?style=for-the-badge" alt="English"></a>
