@@ -113,5 +113,17 @@ internal static class FullscreenRuleTests
             borderless.Behavior(ScreenContext.BackgroundFullscreen, "chrome", "", ScreenContext.Borderless) == WindowBehavior.Normal
             && borderless.Behavior(ScreenContext.BackgroundFullscreen, "chrome", "", ScreenContext.Maximized) == WindowBehavior.Hide
             && borderless.Behavior(ScreenContext.Borderless, "chrome", "") == WindowBehavior.Normal);
+        // A window that reaches into the box the island rests in: it need not fill the screen or be snapped to an edge, so
+        // the island folds to its line for it too, and no app rule speaks for it — the rule is about where the window is.
+        var touched = new DeckSettings();
+        check("A window that touches the island's resting box folds it to the line",
+            touched.Behavior(ScreenContext.Overlapped) == WindowBehavior.Line
+            && touched.Behavior(ScreenContext.Overlapped, "Notepad", "") == WindowBehavior.Line);
+        touched.Overlapped = WindowBehavior.Normal;
+        touched.FullscreenRules = [new FullscreenRule("chrome") { Maximized = WindowBehavior.Line }];
+        check("The overlap rule is the one the settings give, and no app rule speaks for it",
+            touched.Behavior(ScreenContext.Overlapped) == WindowBehavior.Normal
+            && touched.Behavior(ScreenContext.Overlapped, "chrome", "", ScreenContext.Maximized) == WindowBehavior.Normal
+            && touched.Behavior(ScreenContext.Maximized, "chrome", "") == WindowBehavior.Line);
     }
 }

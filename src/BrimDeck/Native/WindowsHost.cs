@@ -43,15 +43,20 @@ public sealed class WindowsHost : IDisposable
     public ScreenContext Current { get; private set; }
     // monitor gives the monitor whose foreground window decides the context. The context is reported with the app it was
     // detected for, and a change of either is a change: two apps can read as the same context with different app rules.
-    public WindowsHost(Func<IntPtr> monitor, Func<IntPtr> window, Func<Rect?> island)
+    public WindowsHost(Func<IntPtr> monitor, Func<IntPtr> window, Func<Rect?> island, Func<Rect?>? resting = null)
     {
         _monitor = monitor; _window = window; _island = island;
+        _resting = resting ?? (() => null);
         _timer.Tick += (_, _) => Poll();
         _timer.Start();
     }
     private readonly Func<IntPtr> _window;
     // The strip the island actually draws in, in screen physical pixels, as of the last layout; null before the first.
     private readonly Func<Rect?> _island;
+    // The box the island rests in, in screen physical pixels, in the shape it takes when nothing asks it to fold; null while
+    // it has no layout. It does not follow the folded shape: the overlap rule reads it, and a box that shrank to the line
+    // would stop touching the window that made it fold, and the island would flip back and forth with every poll.
+    private readonly Func<Rect?> _resting;
     private string _raisedName = "", _raisedPath = "";
     private ScreenContext _raisedKind = ScreenContext.Desktop;
     private void Poll()
@@ -208,9 +213,15 @@ public sealed class WindowsHost : IDisposable
             if (background is null)
             {
                 var filled = BackgroundFilled(monitor, foreground);
-                background = filled == IntPtr.Zero ? ScreenContext.Desktop : ScreenContext.BackgroundFullscreen;
-                if (filled != IntPtr.Zero)
+                if (filled == IntPtr.Zero)
                 {
+                    // No window owns the screen; a window that merely reaches into where the island rests still has to be
+                    // left alone, so the island folds for it the same way.
+                    background = TouchesIsland(monitor) ? ScreenContext.Overlapped : ScreenContext.Desktop;
+                }
+                else
+                {
+                    background = ScreenContext.BackgroundFullscreen;
                     // The rules answer for the app that fills the screen, so its identity and the way it fills the screen
                     // travel with the answer: an app that asked to keep the panel's style is then left alone here too.
                     GetWindowThreadProcessId(filled, out var filledPid);
@@ -278,6 +289,35 @@ public sealed class WindowsHost : IDisposable
             return false;
         }, IntPtr.Zero);
         return found;
+    }
+    // Whether any window on this monitor reaches into the box the island rests in. Nothing else about the window matters:
+    // not its size, not whether it fills the screen, not whether it is snapped to an edge, not whether it is the one in
+    // front — a window's pixels are its own whether or not the user is working in it, and the island is topmost, so
+    // whatever lies under it is partly hidden. Left out: our own windows (the island would always answer yes), and the
+    // ones that cover no pixels at all — minimised, tool windows, the desktop shell, and the windows the window manager
+    // keeps cloaked, which is how the windows of other virtual desktops read.
+    private bool TouchesIsland(IntPtr monitor)
+    {
+        if (_resting() is not { } box) return false;
+        var touched = false;
+        EnumWindows((window, _) =>
+        {
+            if (!IsWindowVisible(window) || IsIconic(window)) return true;
+            if ((GetWindowLongPtr(window, -20).ToInt64() & 0x00000080) != 0) return true;              // WS_EX_TOOLWINDOW
+            if (MonitorFromWindow(window, 2) != monitor) return true;
+            if (DwmGetWindowAttribute(window, 14, out int cloaked, sizeof(int)) == 0 && cloaked != 0) return true;
+            GetWindowThreadProcessId(window, out var pid);
+            if (pid == Environment.ProcessId) return true;
+            var cls = new System.Text.StringBuilder(256);
+            GetClassName(window, cls, cls.Capacity);
+            if (cls.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd") return true;
+            if (DwmGetWindowAttribute(window, 9, out RECT rect, Marshal.SizeOf<RECT>()) != 0) GetWindowRect(window, out rect);
+            // The edges have to cross, not merely meet: a window that ends where the island begins covers none of it.
+            if (rect.Right <= box.Left || rect.Left >= box.Right || rect.Bottom <= box.Top || rect.Top >= box.Bottom) return true;
+            touched = true;
+            return false;
+        }, IntPtr.Zero);
+        return touched;
     }
     // The way a background window fills the screen, in the same terms the foreground context is read in, so that the
     // app's own rule can answer for it: a frameless window across the whole monitor is Borderless, a maximised one is

@@ -82,7 +82,18 @@ public partial class MainWindow : Window
     public MainWindow(App app, MainWindow? lead = null)
     {
         _app = app; _lead = lead;
-        _host = new WindowsHost(() => MonitorHandle, () => new WindowInteropHelper(this).Handle, IslandStrip);
+        _host = new WindowsHost(() => MonitorHandle, () => new WindowInteropHelper(this).Handle, IslandStrip, RestingStrip);
+        // The box the island rests in, in the shape it takes when nothing asks it to fold. A window that reaches into it
+        // makes the island rest as the line, so this must not follow the folded shape: the line is a small part of the box,
+        // and a box that shrank with it would stop touching the very window that made it fold, flipping every poll.
+        Rect? RestingStrip()
+        {
+            if (!IsVisible || PresentationSource.FromVisual(this) is null) return null;
+            if (!(_pixelsPerDip > 0) || !double.IsFinite(_pixelsPerDip)) return null;
+            var surface = ShapeFor(Settings.Style).Surface;
+            return new Rect(surface.X * _pixelsPerDip, surface.Y * _pixelsPerDip,
+                surface.Width * _pixelsPerDip, surface.Height * _pixelsPerDip);
+        }
         Rect? IslandStrip()
         {
             // The island border is what is drawn, in every style and whether the panel is collapsed or open — its size

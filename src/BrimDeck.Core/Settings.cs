@@ -8,7 +8,8 @@ namespace BrimDeck.Core;
 public enum CompactStyle { Notch, Capsule, Line }
 public enum WindowBehavior { Normal, Line, Hide }
 // BackgroundFullscreen: a full-screen window on the panel's monitor that is not the foreground window.
-public enum ScreenContext { Desktop, Maximized, Borderless, Exclusive, BackgroundFullscreen }
+// Overlapped: a window that reaches into the box the island rests in, whatever its size and whether or not it fills the screen.
+public enum ScreenContext { Desktop, Maximized, Borderless, Exclusive, BackgroundFullscreen, Overlapped }
 // The monitors that show the panel. Chosen uses DisplayMonitors and falls back to the primary monitor while none of them is connected.
 public enum DisplayPlacement { Primary, Chosen }
 // A chosen monitor: its device path, and its name at the time, so that a disconnected monitor can still be named.
@@ -350,6 +351,10 @@ public sealed class DeckSettings
     // app holds the foreground, so the island steps aside — by default to its line. App rules that name the background
     // app decide first (see SettingsScreenBehavior in WindowsHost).
     public WindowBehavior BackgroundFullscreen { get; set; } = WindowBehavior.Line;
+    // A window that reaches into the box the island rests in, without filling the screen: the island steps aside to its
+    // line so it does not sit over that window's pixels. Nothing else about the window matters — its size, whether it is
+    // snapped to an edge, whether it is the one in front. Normal turns the rule off.
+    public WindowBehavior Overlapped { get; set; } = WindowBehavior.Line;
     // Applications whose windows are not counted as full screen, so that a desktop beautification tool does not hide the
     // panel. Empty by default: every app follows the three rules above.
     public List<FullscreenRule> FullscreenRules { get; set; } = [];
@@ -499,6 +504,7 @@ public sealed class DeckSettings
         {
             ScreenContext.Maximized => Maximized, ScreenContext.Borderless => Borderless,
             ScreenContext.Exclusive => Exclusive, ScreenContext.BackgroundFullscreen => BackgroundFullscreen,
+            ScreenContext.Overlapped => Overlapped,
             _ => WindowBehavior.Normal
         };
     }
