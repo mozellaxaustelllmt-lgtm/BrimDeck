@@ -546,7 +546,9 @@ public partial class MainWindow
         var block = new Grid();
         double size = Math.Max(11, layout.Reset - 1);
         int cellCount = quota.Rows.Count == 0 ? 0 : quota.Rows.Max(row => row.Cells.Count);
-        block.ColumnDefinitions.Add(new ColumnDefinition());
+        // The name keeps enough room to be read whatever the cells ask for; the panel is narrow and the cells would
+        // otherwise squeeze it down to initials.
+        block.ColumnDefinitions.Add(new ColumnDefinition { MinWidth = 96 });
         for (int c = 0; c < cellCount; c++) block.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         block.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         block.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -563,9 +565,9 @@ public partial class MainWindow
             for (int c = 0; c < cells.Count; c++)
             {
                 if (cells[c].Length == 0) continue;
-                var cell = UI.Centered(cells[c], Math.Max(10.5, size - 1), UI.Tertiary, font: UI.PanelFont);
+                var cell = UI.Centered(cells[c], Math.Max(10, size - 1.5), UI.Tertiary, font: UI.PanelFont);
                 cell.HorizontalAlignment = HorizontalAlignment.Right; cell.VerticalAlignment = VerticalAlignment.Center;
-                cell.Margin = new Thickness(14, 0, 0, 0);
+                cell.Margin = new Thickness(10, 0, 0, 0);
                 Grid.SetRow(cell, i); Grid.SetColumn(cell, 1 + c); block.Children.Add(cell);
             }
             // Only a line past the warning level takes the readout colour: the rest stays as legible as the name.
@@ -577,7 +579,7 @@ public partial class MainWindow
                 // follows the used share, so a line that is running out turns yellow and then red as the bar empties.
                 double fill = row.Remaining ? (100 - used) / 100 : used / 100;
                 var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", fill, PanelTheme.QuotaColor(entry, used))
-                { Width = BarWidth, Height = 3, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 10, 0) };
+                { Width = BarWidth, Height = 3, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 8, 0) };
                 Grid.SetRow(bar, i); Grid.SetColumn(bar, 1 + cellCount); block.Children.Add(bar);
             }
             var value = UI.Centered(row.Value, size, alerting ? PanelTheme.QuotaColor(entry, used) : UI.Primary,
@@ -588,7 +590,7 @@ public partial class MainWindow
         return block;
     }
     // The width of a line's own bar. Short on purpose: it reads at a glance without needing a track of its own.
-    private const double BarWidth = 34;
+    private const double BarWidth = 30;
 
     // The row's off-peak periods, written as the settings write them.
     private static string OffPeakTooltip(AppEntry entry) => Loc.T("低峰时间：", "Off-peak time: ") + string.Join(Loc.T("、", ", "), entry.OffPeak.Select(period =>
