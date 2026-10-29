@@ -7,8 +7,10 @@ namespace BrimDeck.Core;
 // Rows is a compact list for a source with many small numbers: one card holds a table of them instead of one card each.
 public enum MetricKind { Percent, Balance, Spend, Count, Text, Rows }
 
-// One line of a Rows metric: a name, what it reads, an optional note and an optional used share for the thin bar beneath.
-public sealed record MetricRow(string Label, string Value = "", string Note = "", double? Percent = null);
+// One line of a Rows metric: a name, what it reads, an optional note and an optional used share for the short bar beside it.
+// Remaining draws that bar as what is left instead of what is used, for a line whose reading is itself the remainder
+// ("6,050 / 6,762"): the bar then tells the same story as the number beside it, and the colour still follows the used share.
+public sealed record MetricRow(string Label, string Value = "", string Note = "", double? Percent = null, bool Remaining = false);
 
 public sealed record UsageMetric(MetricKind Kind, string Label)
 {
@@ -149,7 +151,9 @@ public static class MetricParser
             if (name.Length == 0) continue;
             var share = entry.Get("percent");
             double? percent = share.ValueKind == JsonValueKind.Number && share.TryGetDouble(out var value) && double.IsFinite(value) ? Math.Clamp(value, 0, 100) : null;
-            rows.Add(new MetricRow(name, Short(entry.Get("value").Text()), Short(entry.Get("note").Text()), percent));
+            var remaining = entry.Get("remaining");
+            rows.Add(new MetricRow(name, Short(entry.Get("value").Text()), Short(entry.Get("note").Text()), percent,
+                remaining.ValueKind == JsonValueKind.True));
         }
         if (rows.Count == 0) throw new InvalidDataException(Loc.T("rows 为空，至少要有一行。", "rows is empty; at least one row is needed."));
         return rows;

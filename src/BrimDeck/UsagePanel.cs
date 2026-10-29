@@ -566,7 +566,10 @@ public partial class MainWindow
             bool alerting = row.Percent is not null && AppPresets.Level(used) > 0;
             if (row.Percent is not null)
             {
-                var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", used / 100, PanelTheme.QuotaColor(entry, used))
+                // A line whose reading is the remainder draws the bar as what is left, so the two agree; the colour still
+                // follows the used share, so a line that is running out turns yellow and then red as the bar empties.
+                double fill = row.Remaining ? (100 - used) / 100 : used / 100;
+                var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", fill, PanelTheme.QuotaColor(entry, used))
                 { Width = BarWidth, Height = 3, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
                 Grid.SetColumn(bar, 2); line.Children.Add(bar);
             }
