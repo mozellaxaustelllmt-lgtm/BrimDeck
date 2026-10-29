@@ -4,7 +4,12 @@ using System.Text.Json;
 namespace BrimDeck.Core;
 
 // Text is the custom-script format: the script supplies every displayed string itself.
-public enum MetricKind { Percent, Balance, Spend, Count, Text }
+// Rows is a compact list for a source with many small numbers: one card holds a table of them instead of one card each.
+public enum MetricKind { Percent, Balance, Spend, Count, Text, Rows }
+
+// One line of a Rows metric: a name, what it reads, an optional note and an optional used share for the thin bar beneath.
+public sealed record MetricRow(string Label, string Value = "", string Note = "", double? Percent = null);
+
 public sealed record UsageMetric(MetricKind Kind, string Label)
 {
     public string Id { get; init; } = "";
@@ -25,6 +30,8 @@ public sealed record UsageMetric(MetricKind Kind, string Label)
     public string Suffix { get; init; } = "";
     public string Note { get; init; } = "";
     public string ResetText { get; init; } = "";
+    // A Rows metric's lines; empty for every other kind.
+    public IReadOnlyList<MetricRow> Rows { get; init; } = [];
     public double? UsedPercent => Kind switch
     {
         MetricKind.Percent or MetricKind.Text => Percent,
@@ -34,10 +41,18 @@ public sealed record UsageMetric(MetricKind Kind, string Label)
         MetricKind.Count when Total is > 0 && Used is { } used => (double)(used / Total.Value * 100),
         _ => null
     };
-    public string ValueText => Kind == MetricKind.Text ? Value : Kind is MetricKind.Balance or MetricKind.Spend ? (AtLeast ? "≥" : "") + Money(Amount!.Value, Currency) : UsedPercent is { } p ? $"{p:0.#}%" : "—";
-    public string ValueSuffix => Kind switch { MetricKind.Text => Value.Length > 0 ? Suffix : "", MetricKind.Balance => Loc.T("可用", "left"), _ => Loc.T("已用", "used") };
+    public string ValueText => Kind switch
+    {
+        MetricKind.Rows => "",
+        MetricKind.Text => Value,
+        MetricKind.Balance or MetricKind.Spend => (AtLeast ? "≥" : "") + Money(Amount!.Value, Currency),
+        _ => UsedPercent is { } p ? $"{p:0.#}%" : "—"
+    };
+    public string ValueSuffix => Kind switch { MetricKind.Rows => "", MetricKind.Text => Value.Length > 0 ? Suffix : "", MetricKind.Balance => Loc.T("可用", "left"), _ => Loc.T("已用", "used") };
     public string CountText => Kind == MetricKind.Count ? $"{Used:N0} / {Total:N0}" : "";
-    public string Description => string.Join("\n", new[] { Kind == MetricKind.Text ? Label : Loc.Label(Label), (ValueText + " " + ValueSuffix).Trim(), Note, ResetText,
+    public string Description => Kind == MetricKind.Rows
+        ? string.Join("\n", new[] { Loc.Label(Label) }.Concat(Rows.Select(row => string.Join("  ", new[] { row.Label, row.Value, row.Note }.Where(x => x.Length > 0)))))
+        : string.Join("\n", new[] { Kind == MetricKind.Text ? Label : Loc.Label(Label), (ValueText + " " + ValueSuffix).Trim(), Note, ResetText,
         Total is { } total ? Loc.T("总额：", "Total: ") + (Kind == MetricKind.Count ? total.ToString("N0") + " " + Loc.Label(Unit) : Money(total, Currency)) : "",
         CountText, Unlimited ? Loc.T("无上限", "No limit") : "", ResetAt is { } reset ? Loc.T("重置时间：", "Resets: ") + $"{reset.LocalDateTime:yyyy-MM-dd HH:mm:ss}" : "",
         ExpiresAt is { } expiry ? Loc.T("到期时间：", "Expires: ") + $"{expiry.LocalDateTime:yyyy-MM-dd HH:mm:ss}" : "" }.Where(x => x.Length > 0));
@@ -120,13 +135,34 @@ public static class MetricParser
         return new(MetricKind.Text, title) { Id = index.ToString(CultureInfo.InvariantCulture), Percent = percent,
             Value = Text("value"), Suffix = Text("suffix"), Note = Text("note"), ResetText = Text("resetAt") };
     }
+    // A rows metric's lines: at most 30, each a name with an optional value, note and used share. A line without a name is
+    // dropped rather than failing the whole reading.
+    private static List<MetricRow> ParseRows(JsonElement item)
+    {
+        var list = item.Get("rows");
+        if (list.ValueKind != JsonValueKind.Array) throw new InvalidDataException(Loc.T("rows 缺失或不是数组。", "rows is missing or not an array."));
+        var rows = new List<MetricRow>();
+        foreach (var entry in list.EnumerateArray().Take(30))
+        {
+            if (entry.ValueKind != JsonValueKind.Object) continue;
+            var name = Short(entry.Get("label").Text());
+            if (name.Length == 0) continue;
+            var share = entry.Get("percent");
+            double? percent = share.ValueKind == JsonValueKind.Number && share.TryGetDouble(out var value) && double.IsFinite(value) ? Math.Clamp(value, 0, 100) : null;
+            rows.Add(new MetricRow(name, Short(entry.Get("value").Text()), Short(entry.Get("note").Text()), percent));
+        }
+        if (rows.Count == 0) throw new InvalidDataException(Loc.T("rows 为空，至少要有一行。", "rows is empty; at least one row is needed."));
+        return rows;
+    }
     private static string Short(string text) => text.Length > 500 ? text[..500] : text;
     private static UsageMetric ParseMetric(JsonElement item, int index)
     {
         var kind = item.Get("kind").Text() switch
-        { "percent" => MetricKind.Percent, "balance" => MetricKind.Balance, "spend" => MetricKind.Spend, "count" => MetricKind.Count, _ => throw new InvalidDataException(Loc.T("kind 必须是 percent、balance、spend 或 count。", "kind must be percent, balance, spend or count.")) };
+        { "percent" => MetricKind.Percent, "balance" => MetricKind.Balance, "spend" => MetricKind.Spend, "count" => MetricKind.Count, "rows" => MetricKind.Rows, _ => throw new InvalidDataException(Loc.T("kind 必须是 percent、balance、spend、count 或 rows。", "kind must be percent, balance, spend, count or rows.")) };
         var label = item.Get("label").Text();
         if (string.IsNullOrWhiteSpace(label)) throw new InvalidDataException(Loc.T("label 缺失。", "label is missing."));
+        // A rows metric carries its own table and none of the numeric fields, so it is settled before they are demanded.
+        if (kind == MetricKind.Rows) return new(kind, Short(label)) { Id = item.Get("id").Text() is { Length: > 0 } rowsId ? Short(rowsId) : index.ToString(CultureInfo.InvariantCulture), Rows = ParseRows(item) };
         decimal? Number(string key, bool required = false)
         {
             var value = item.Get(key);

@@ -15,6 +15,15 @@ internal static class ConfiguredProviderTests
         check("Custom array items keep their display strings in order", texts.Metrics.Count == 2 && texts.Metrics[0] is { Kind: MetricKind.Text, Label: "5 小时", UsedPercent: 35, ValueText: "$12.50", ValueSuffix: "已用", Note: "无上限", ResetText: "2 时 13 分后" });
         check("Custom items without percent or value draw a full bar and no number or suffix", texts.Metrics[1] is { UsedPercent: null, ValueText: "", ValueSuffix: "" });
         check("Invalid custom items are reported by position and field", texts.Warnings.Count == 3 && texts.Warnings.Zip(new[] { ("3", "title"), ("4", "value"), ("5", "percent") }).All(w => w.First.Contains(w.Second.Item1) && w.First.Contains(w.Second.Item2)));
+        // A table of small numbers in one card, instead of one card each.
+        var table = MetricParser.Parse(Json("""{"metrics":[{"kind":"rows","label":"号池","rows":[{"label":"账号池","value":"6/6","note":"6/6 已签"},{"label":"G","value":"6,050/6,762","note":"成 2091","percent":11},{"label":"","value":"无名称"}]}]}"""));
+        check("A rows metric keeps its lines in order and drops the nameless one", table.Metrics.Count == 1
+            && table.Metrics[0] is { Kind: MetricKind.Rows, Label: "号池" }
+            && table.Metrics[0].Rows is [var rowFirst, var rowSecond]
+            && rowFirst is { Label: "账号池", Value: "6/6", Note: "6/6 已签", Percent: null }
+            && rowSecond is { Label: "G", Percent: 11 });
+        check("A rows metric has no reading or bar of its own", table.Metrics[0].UsedPercent is null && table.Metrics[0].ValueText == "" && table.Metrics[0].ValueSuffix == "");
+        check("Rows without lines and unknown kinds are reported", Failure("""{"metrics":[{"kind":"rows","label":"x"}]}""").Contains("rows") && Failure("""{"metrics":[{"kind":"table","label":"x"}]}""").Contains("kind"));
         static string Failure(string json) { try { MetricParser.Parse(Json(json)); return ""; } catch (InvalidDataException ex) { return ex.Message; } }
         check("Empty arrays and objects without metrics explain the expected return value",
             Failure("[]") != "" && Failure("""{"title":"x"}""").Contains("fetchUsage") && Failure("""[{"title":" "}]""").Contains("title"));

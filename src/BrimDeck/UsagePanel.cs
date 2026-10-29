@@ -459,6 +459,7 @@ public partial class MainWindow
     // and a quota page flip eases each bar from the quota it replaces, as the monitor page's values move.
     private static Grid QuotaBlock(AppEntry entry, UsageMetric quota, Layout layout, int slot)
     {
+        if (quota.Kind == MetricKind.Rows) return RowsBlock(entry, quota, layout);
         double used = Math.Clamp(quota.UsedPercent ?? 100, 0, 100);
         string color = quota.UsedPercent is null ? PanelTheme.QuotaTheme(entry) : PanelTheme.QuotaColor(entry, used);
         int level = quota.UsedPercent is null ? 0 : AppPresets.Level(used);
@@ -522,6 +523,51 @@ public partial class MainWindow
         block.Children.Add(numbers);
         var track = new QuotaBar($"{entry.InstanceId:N}:{slot}", used / 100, color); Grid.SetRow(track, 4);
         block.Children.Add(track);
+        return block;
+    }
+
+    // A compact table: one line per row — the name on the left, its reading on the right, an optional note in between and a
+    // thin bar for the rows that carry a used share. A source with many small numbers (one per account, say) reads better
+    // as one table than as a card each, which would cost a page turn per two of them.
+    private static Grid RowsBlock(AppEntry entry, UsageMetric quota, Layout layout)
+    {
+        var block = new Grid();
+        double size = Math.Max(10, layout.Reset);
+        double lineHeight = Math.Max(13, size + 3);
+        for (int i = 0; i < quota.Rows.Count; i++)
+        {
+            var row = quota.Rows[i];
+            block.RowDefinitions.Add(new RowDefinition { Height = new GridLength(lineHeight) });
+            var line = new Grid();
+            line.ColumnDefinitions.Add(new ColumnDefinition());
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var name = UI.Fixed(row.Label, size, lineHeight, UI.Secondary);
+            name.HorizontalAlignment = HorizontalAlignment.Left; name.Margin = new Thickness(0, 0, 8, 0);
+            name.ToolTip = row.Label;
+            line.Children.Add(name);
+            if (row.Note.Length > 0)
+            {
+                var note = UI.Fixed(row.Note, Math.Max(10, size - 1), lineHeight, UI.Tertiary, font: UI.PanelFont);
+                note.HorizontalAlignment = HorizontalAlignment.Right; note.Margin = new Thickness(0, 0, 10, 0);
+                Grid.SetColumn(note, 1); line.Children.Add(note);
+            }
+            // Only a row past the warning level takes the readout colour: the rest stays as legible as the name.
+            double used = Math.Clamp(row.Percent ?? 0, 0, 100);
+            bool alerting = row.Percent is not null && AppPresets.Level(used) > 0;
+            var value = UI.Fixed(row.Value, size, lineHeight, alerting ? PanelTheme.QuotaColor(entry, used) : UI.Primary,
+                alerting ? FontWeights.SemiBold : null);
+            value.HorizontalAlignment = HorizontalAlignment.Right;
+            Grid.SetColumn(value, 2); line.Children.Add(value);
+            if (row.Percent is { } percent)
+            {
+                var bar = new QuotaBar($"{entry.InstanceId:N}:rows{quota.Id}:{i}", percent / 100, PanelTheme.QuotaColor(entry, used))
+                { Height = 2, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 1) };
+                line.Children.Add(bar);
+            }
+            Grid.SetRow(line, i);
+            block.Children.Add(line);
+        }
         return block;
     }
 
