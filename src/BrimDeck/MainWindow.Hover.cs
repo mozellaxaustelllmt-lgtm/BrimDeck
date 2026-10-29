@@ -29,7 +29,11 @@ public partial class MainWindow
     // at the top of the monitor and _windowOffset DIPs to the right of its left edge; the island is drawn with the same offset.
     private Rect HoverZoneOnStage()
     {
-        var zone = CollapsedHover.Zone(Collapsed.Style, Collapsed.Surface, WorkDip.Y);
+        // A panel that opens on a click senses the click's larger box; one that opens on hover keeps the tight zone, so a
+        // pointer passing by does not reach it from further away.
+        var zone = Settings.ClickToExpand && !_expanded
+            ? CollapsedHover.ClickZone(Collapsed.Style, Collapsed.Surface, WorkDip.Y)
+            : CollapsedHover.Zone(Collapsed.Style, Collapsed.Surface, WorkDip.Y);
         return new Rect(zone.X - _windowOffset, zone.Y, Math.Max(0, zone.Width), Math.Max(0, zone.Height));
     }
 }

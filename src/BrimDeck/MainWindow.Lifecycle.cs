@@ -85,7 +85,10 @@ public partial class MainWindow
     private void Boot()
     {
         if (_poweringOff || _app.Exiting || _retiring) return;
-        if (_expanded || IsSuppressed || !CanAnimateLifecycle) { SetImmediate(HoverZone, OpacityProperty, 1d); return; }
+        // The opening animation swells a dot into the collapsed shape, which the indicator has no room for: it would stay at
+        // the stage's starting opacity and never be seen. The line appears at once instead.
+        if (_expanded || IsSuppressed || !CanAnimateLifecycle || EffectiveStyle == CompactStyle.Line)
+        { SetImmediate(HoverZone, OpacityProperty, 1d); BrimDeck.Core.Diag.Log("boot reveal immediately effective=" + EffectiveStyle); return; }
         SetImmediate(HoverZone, OpacityProperty, 0d);
         _bootWaiting = true;
         int boot = ++_boot;
@@ -105,7 +108,10 @@ public partial class MainWindow
     {
         int boot = ++_boot; _bootWaiting = false;
         if (_poweringOff || _app.Exiting || _retiring) return;
-        if (_expanded || IsSuppressed || !CanAnimateLifecycle) { SetImmediate(HoverZone, OpacityProperty, 1d); return; }
+        // The opening animation swells a dot into the collapsed shape, which the indicator has no room for: it would stay at
+        // the stage's starting opacity and never be seen. The line appears at once instead.
+        if (_expanded || IsSuppressed || !CanAnimateLifecycle || EffectiveStyle == CompactStyle.Line)
+        { SetImmediate(HoverZone, OpacityProperty, 1d); BrimDeck.Core.Diag.Log("boot reveal immediately effective=" + EffectiveStyle); return; }
         var shape = Collapsed = ShapeFor(EffectiveStyle);
         PlaceDot(shape);
         _bootDot = true; Island.SettledClip = false;

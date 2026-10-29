@@ -49,5 +49,15 @@ internal static class CollapsedHoverTests
             CollapsedHover.Zone(CompactStyle.Notch, new DipRect(100, 0, 238, 32), 48) == new DipRect(100, 0, 238, 32)
             && CollapsedHover.Zone(CompactStyle.Line, new DipRect(500, 52, 56, 4), 48) == new DipRect(492, 0, 72, 58)
             && CollapsedHover.HasBridge(CompactStyle.Line, new DipRect(0, 200, 56, 4), 48));
-    }
+        // A panel that opens on a click needs a box a pointer can find: the line's own zone is a few pixels tall.
+        var bar = new DipRect(500, 4, 56, 4);
+        var tight = CollapsedHover.Zone(CompactStyle.Line, bar, 0);
+        var clickable = CollapsedHover.ClickZone(CompactStyle.Line, bar, 0);
+        check("A click zone is wider and taller than the line's hover zone",
+            clickable.Width > tight.Width && clickable.Height >= CollapsedHover.ClickMinHeight
+            && clickable.Width >= CollapsedHover.ClickMinWidth);
+        check("A click zone stays centred on the line and reaches the screen edge",
+            Math.Abs((clickable.X + clickable.Width / 2) - (tight.X + tight.Width / 2)) < 0.001 && clickable.Y <= 0);
+        check("A click zone never shrinks a zone that is already larger",
+            CollapsedHover.ClickZone(CompactStyle.Notch, new DipRect(0, 0, 400, 32), 0) == CollapsedHover.Zone(CompactStyle.Notch, new DipRect(0, 0, 400, 32), 0));    }
 }

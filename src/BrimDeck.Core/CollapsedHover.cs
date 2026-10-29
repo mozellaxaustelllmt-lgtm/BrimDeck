@@ -29,6 +29,20 @@ public static class CollapsedHover
         return new(surface.X - padX, top, surface.Width + padX * 2, surface.Bottom + padBelow - top);
     }
 
+    // The box a click on a collapsed surface counts in, when the panel opens on a click instead of on hover. The line is
+    // four pixels tall, so its own zone would be a target the pointer has to find; this is the box around it that a click
+    // reaches. Hover keeps leaving Zone alone: nothing is aimed at there, and a wider sensing area would open the panel
+    // from further away.
+    public const double ClickMinWidth = 220, ClickMinHeight = 26;
+
+    public static DipRect ClickZone(CompactStyle style, DipRect surface, double workTop)
+    {
+        var zone = Zone(style, surface, workTop);
+        double width = Math.Max(zone.Width, ClickMinWidth), height = Math.Max(zone.Height, ClickMinHeight);
+        // Centred on what is drawn, growing downward from the same top edge, so the box never leaves the screen edge above.
+        return new(zone.X - (width - zone.Width) / 2, zone.Y, width, height);
+    }
+
     // The edge a bridge reaches up to: the work area's top for the capsule, the screen edge for the others.
     private static double BridgeTop(CompactStyle style, double workTop)
         => style == CompactStyle.Capsule && double.IsFinite(workTop) ? Math.Max(0, workTop) : 0;

@@ -7,7 +7,8 @@ namespace BrimDeck.Core;
 
 public enum CompactStyle { Notch, Capsule, Line }
 public enum WindowBehavior { Normal, Line, Hide }
-public enum ScreenContext { Desktop, Maximized, Borderless, Exclusive }
+// BackgroundFullscreen: a full-screen window on the panel's monitor that is not the foreground window.
+public enum ScreenContext { Desktop, Maximized, Borderless, Exclusive, BackgroundFullscreen }
 // The monitors that show the panel. Chosen uses DisplayMonitors and falls back to the primary monitor while none of them is connected.
 public enum DisplayPlacement { Primary, Chosen }
 // A chosen monitor: its device path, and its name at the time, so that a disconnected monitor can still be named.
@@ -336,12 +337,19 @@ public sealed class DeckSettings
     // grow together, as Windows' display scaling would for BrimDeck alone. Sizes stay saved before the scale.
     public int PanelScale { get; set; } = PanelScales.Default;
     public int OpenDelay { get; set; } = 0;
+    // The collapsed island opens on a click instead of on hover. A pointer that only passes over the top of the screen
+    // would otherwise open the panel, which gets in the way of whatever it covers.
+    public bool ClickToExpand { get; set; }
     public int CloseDelay { get; set; } = 0;
     public int AnimationDuration { get; set; } = 360;
     public bool Animations { get; set; } = true;
     public WindowBehavior Maximized { get; set; } = WindowBehavior.Line;
     public WindowBehavior Borderless { get; set; } = WindowBehavior.Hide;
     public WindowBehavior Exclusive { get; set; } = WindowBehavior.Hide;
+    // A full-screen window elsewhere on the same monitor: the page is what the user is looking at even while another
+    // app holds the foreground, so the island steps aside — by default to its line. App rules that name the background
+    // app decide first (see SettingsScreenBehavior in WindowsHost).
+    public WindowBehavior BackgroundFullscreen { get; set; } = WindowBehavior.Line;
     // Applications whose windows are not counted as full screen, so that a desktop beautification tool does not hide the
     // panel. Empty by default: every app follows the three rules above.
     public List<FullscreenRule> FullscreenRules { get; set; } = [];
@@ -486,7 +494,8 @@ public sealed class DeckSettings
         return context switch
         {
             ScreenContext.Maximized => Maximized, ScreenContext.Borderless => Borderless,
-            ScreenContext.Exclusive => Exclusive, _ => WindowBehavior.Normal
+            ScreenContext.Exclusive => Exclusive, ScreenContext.BackgroundFullscreen => BackgroundFullscreen,
+            _ => WindowBehavior.Normal
         };
     }
     public DeckSettings Copy()

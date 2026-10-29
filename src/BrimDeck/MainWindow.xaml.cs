@@ -585,6 +585,19 @@ public partial class MainWindow : Window
         var shape = Collapsed;
         var style = shape.Style;
         bool line = style == CompactStyle.Line, indicator = !expanded && line;
+        BrimDeck.Core.Diag.Log(string.Format(
+            "setExpanded expanded={0} ctx={1} behavior={2} effective={3} suppressed={4} vis={5} surface=({6:0.#},{7:0.#},{8:0.#}x{9:0.#}) scale={10:0.##} offset={11:0.#} style={12}",
+            expanded, _context, Settings.Behavior(_context, _host.App.Name, _host.App.Path), EffectiveStyle, IsSuppressed, IsVisible,
+            shape.Surface.X, shape.Surface.Y, shape.Surface.Width, shape.Surface.Height, _scale, _windowOffset, Settings.Style));
+        try
+        {
+            var p0 = Island.PointToScreen(new Point(0, 0));
+            BrimDeck.Core.Diag.Log(string.Format(
+                "  island screen=({0:0},{1:0}) actual={2:0.#}x{3:0.#} op={4:0.##} vis={5} margin=({6}) stageOp={7:0.##} winPos=({8:0},{9:0}) winSize={10:0}x{11:0}",
+                p0.X, p0.Y, Island.ActualWidth, Island.ActualHeight, Island.Opacity, Island.Visibility,
+                Island.Margin, HoverZone.Opacity, Left, Top, ActualWidth, ActualHeight));
+        }
+        catch (Exception ex) { BrimDeck.Core.Diag.Log("  island probe failed: " + ex.Message); }
         double wantedHeight = DeckPages.Size(Settings, CurrentPage).Height;
         var panel = PanelFor(wantedHeight);
         double panelTop = panel.Top, headerExtra = panel.HeaderExtra;
@@ -772,6 +785,19 @@ public partial class MainWindow : Window
     { if (_expanded) PointerChanged(true); }
     private void Island_MouseLeave(object sender, MouseEventArgs e)
     { if (_expanded) PointerChanged(false); }
+    // Collapsed, a click opens the panel where the settings ask for a click rather than for a hover. The line is only a few
+    // pixels tall, so the click counts anywhere in its (larger) hover zone — see CollapsedHover.ClickZone. Anything else a
+    // click could mean belongs to the open panel, so this only runs while collapsed, and never during an edge drag.
+    private void Island_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_expanded || IsSuppressed || Resizing || !Settings.ClickToExpand) return;
+        var cursor = WindowsHost.Cursor();
+        if (!CompactHoverScreenRect().Contains(cursor)) return;
+        e.Handled = true;
+        // Opened by a click: the panel centres on the pointer, as one opened by a hover does (see SetExpanded).
+        if (PresentationSource.FromVisual(Stage) is not null) _openCentre = Stage.PointFromScreen(cursor).X + _windowOffset;
+        SetExpanded(true);
+    }
     internal void TrackPointer()
     {
         if (_preview && _previewExpanded || IsSuppressed || !IsVisible || PresentationSource.FromVisual(Stage) is null || Resizing || BootHoldsPointer) return;
@@ -835,6 +861,8 @@ public partial class MainWindow : Window
         {
             _popupReturnArea = null;
             _leave.Stop(); if (_expanded || IsSuppressed) return;
+            // Asked for a click, a passing pointer never opens the panel (Island_MouseLeftButtonUp does).
+            if (Settings.ClickToExpand) return;
             _hover.Stop(); _hover.Interval = TimeSpan.FromMilliseconds(Math.Max(1, Settings.OpenDelay)); _hover.Start();
         }
         else
