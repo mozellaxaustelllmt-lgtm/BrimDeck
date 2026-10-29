@@ -684,6 +684,16 @@ public sealed partial class SettingsWindow : Window
         Group(BehaviorRow(Loc.T("有窗口最大化时", "When a window is maximized"), S.Maximized, value => Change(s => s.Maximized = value)),
             BehaviorRow(Loc.T("有应用处于无边框全屏时", "When an app is in borderless full screen"), S.Borderless, value => Change(s => s.Borderless = value)),
             BehaviorRow(Loc.T("有应用处于独占全屏时", "When an app is in exclusive full screen"), S.Exclusive, value => Change(s => s.Exclusive = value)),
+            // The two rules that are about a window the user is not working in. They answer after the three above, so a
+            // window that fills the screen keeps the rule its own context gives it.
+            BehaviorRow(Loc.T("有窗口在后台铺满屏幕时", "When a window behind the front one fills the screen"), S.BackgroundFullscreen,
+                value => Change(s => s.BackgroundFullscreen = value),
+                help: () => Loc.T("前台窗口后面有另一个窗口铺满整块屏幕时——最大化，或者 F11 那样的无边框全屏。按名字配好的应用规则会先于这一项作答。",
+                    "Another window fills the whole screen behind the one in front — maximized, or full screen without a frame such as F11. An app rule saved for that app answers before this one.")),
+            BehaviorRow(Loc.T("有窗口碰到 BrimDeck 的位置时", "When a window reaches where BrimDeck sits"), S.Overlapped,
+                value => Change(s => s.Overlapped = value),
+                help: () => Loc.T("任何窗口只要有像素压到 BrimDeck 收起后所占的那块区域，就按这一项处理：不管它是否全屏、是否贴着屏幕边缘、是不是当前窗口。上面几条都优先于它。",
+                    "Any window whose pixels reach the area BrimDeck occupies when collapsed, whether or not it fills the screen, is snapped to an edge, or is the window in front. The rules above answer first.")),
             ExceptionsRow());
     }
 
@@ -1147,7 +1157,7 @@ public sealed partial class SettingsWindow : Window
             "Works only when the wheel is rolled over the expanded panel; areas that scroll, such as the lyrics and the details, are not affected."));
     }
 
-    private FrameworkElement BehaviorRow(string title, WindowBehavior selected, Action<WindowBehavior> changed)
+    private FrameworkElement BehaviorRow(string title, WindowBehavior selected, Action<WindowBehavior> changed, Func<string>? help = null)
     {
         var options = new UniformGrid { Columns = 3, Width = 324 };
         foreach (var behavior in Enum.GetValues<WindowBehavior>())
@@ -1155,6 +1165,6 @@ public sealed partial class SettingsWindow : Window
             var option = new RadioButton { Content = BehaviorName(behavior), Style = (Style)FindResource("SettingsSegment"), GroupName = "Behavior" + title, IsChecked = selected == behavior };
             AutomationProperties.SetName(option, title + " · " + BehaviorName(behavior)); option.Checked += (_, _) => changed(behavior); options.Children.Add(option);
         }
-        return Row(title, SegmentBorder(options));
+        return Row(title, SegmentBorder(options), help: help);
     }
 }
