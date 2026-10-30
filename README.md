@@ -1,4 +1,15 @@
-> **Personal fork, developed on its own `1.3.x` line.** `main` here is upstream v1.2.3 plus local patches — folding when a window behind the foreground fills the screen, click-to-expand, a larger click target, per-app rules for background windows, and a compact quota table. The upstream project and its releases are at [MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck).
+> **Personal fork, developed on its own line.** `main` is upstream [BrimDeck](https://github.com/MoFeng2223/BrimDeck) v1.2.3
+> plus local patches, currently **1.3.13**. Everything described below comes from upstream and is included; on top of it this
+> build changes:
+>
+> - **a window filling the screen behind the foreground** folds the island to its line — maximised, or borderless full screen such as F11
+> - **any window reaching the area where the island sits** folds it too, whether or not it fills the screen, is snapped to an edge, or is the window in front
+> - both folds **ask that app's own rule first**: an app set to keep the panel's style is left alone
+> - the collapsed island **opens on a click** rather than a hover, and its click target is 220×26, so the four-pixel line is easy to hit
+> - quotas show as **one compact table**: credits, then per account its success count, in-flight requests, request count, tokens and remaining credit, in aligned columns on a single page
+>
+> This repository **publishes no installers**. For the official build go upstream; to use these patches, build from source
+> (`pwsh scripts/Publish-Release.ps1 -Version 1.3.13`).
 
 <div align="center">
 
