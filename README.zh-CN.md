@@ -1,14 +1,8 @@
 > **个人分叉，独立开发。** `main` = 上游 [BrimDeck](https://github.com/MoFeng2223/BrimDeck) v1.2.3 + 本地补丁，
-> 当前版本 **1.3.13**。下面的功能说明来自上游，这一版同样包含；在此基础上本地还改了这些：
+> 当前版本 **1.3.13**。相对上游的改动：折叠规则多两条（后台窗口铺满屏幕、任意窗口碰到岛所在的区域）、
+> 收起时点击展开、指示条形态启动即可见、自定义配额可以是紧凑表格。详见[本地补丁](#本地补丁)。
 >
-> - **后台有窗口铺满屏幕时**，岛收成横线（最大化、F11 无边框全屏都算）
-> - **任意窗口碰到岛所在的区域时**，岛也收成横线——不看它是否全屏、是否贴着屏幕边缘、是不是当前窗口
-> - 上面两种折叠都**先问该应用自己的规则**，应用说了"保持原样"就不折叠
-> - 收起时**点击展开**（不靠悬停），点击热区放大到 220×26，四像素的细线也点得中
-> - 配额卡片用**一张紧凑表格**：积分、每个号的成败/在途/请求数/token/剩余额度排成对齐的列，一页看完
->
-> 本仓库**不发布安装包**。要官方版本请去上游；要用这些补丁请从源码打包
-> （`pwsh scripts/Publish-Release.ps1 -Version 1.3.13`）。
+> 本仓库**不发布安装包**，[安装](#安装)一节讲怎么自己打包；官方版本请去上游。
 
 <div align="center">
 
@@ -23,12 +17,11 @@ BrimDeck 是 Windows 11 上的灵动岛，在屏幕顶部集中显示 AI 编程�
 平时收起在屏幕顶部，只在需要时展开。<br>
 Windows 原生应用，使用 C# 与 WPF 开发，注重性能与流畅度。
 
-[![下载](https://img.shields.io/badge/下载-Windows%2011%20x64-9CB9FF?style=flat-square)](https://github.com/MoFeng2223/BrimDeck/releases/latest)
-[![最新版本](https://img.shields.io/github/v/release/MoFeng2223/BrimDeck?style=flat-square&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC&color=98DBB0)](https://github.com/MoFeng2223/BrimDeck/releases/latest)
+![版本](https://img.shields.io/badge/版本-1.3.13-98DBB0?style=flat-square)
 [![许可证](https://img.shields.io/badge/许可证-Apache%202.0-E5A385?style=flat-square)](LICENSE)
 ![界面语言](https://img.shields.io/badge/界面-简体中文%20%7C%20English-B9A8FF?style=flat-square)
 
-<p><a href="#功能">功能</a> · <a href="#安装">安装</a> · <a href="#快速开始">快速开始</a> · <a href="#隐私">隐私</a> · <a href="#常见问题">常见问题</a> · <a href="#参与开发">参与开发</a> · <a href="README.md">English</a></p>
+<p><a href="#功能">功能</a> · <a href="#本地补丁">本地补丁</a> · <a href="#安装">安装</a> · <a href="#快速开始">快速开始</a> · <a href="#隐私">隐私</a> · <a href="#常见问题">常见问题</a> · <a href="#参与开发">参与开发</a> · <a href="README.md">English</a></p>
 
 <img src="docs/zh-CN/images/hero.png" width="100%" alt="BrimDeck 从屏幕顶部的刘海展开为 AI 用量面板，依次切换到音乐页和系统监控页，最后收起">
 
@@ -37,7 +30,7 @@ Windows 原生应用，使用 C# 与 WPF 开发，注重性能与流畅度。
 ## 为什么选择 BrimDeck
 
 - **额度集中显示**：Claude、Codex、Cursor、Antigravity 等工具的额度集中在一个面板上，不必逐个打开网页、命令行或应用查看。
-- **简化额度查询操作**：平时收起在屏幕顶部，鼠标移上去即展开，移开即收起。
+- **简化额度查询操作**：平时收起在屏幕顶部，点一下展开，移开鼠标或按 Esc 收起。
 - **媒体控制**：内联预览与控制正在播放的歌曲，封面、律动条与歌词随音乐变化。
 - **系统监控**：CPU、内存、网速等读数常驻在刘海或胶囊中，一眼即可看到。
 - **全屏免打扰**：全屏玩游戏或看视频时自动隐藏，避免误触展开；可在设置中调整。
@@ -76,7 +69,7 @@ BrimDeck 平时位于屏幕顶部中央，提供刘海（默认）、胶囊和�
 
 - 刘海、胶囊和指示条的尺寸与位置可在设置中调整。
 
-- 窗口最大化时默认切换为指示条，全屏游戏或视频播放时默认隐藏，避免误触展开。
+- 窗口最大化、或后台有窗口铺满屏幕时默认切换为指示条；任意窗口压到岛所在的区域时也会切换（见[本地补丁](#本地补丁)）。全屏游戏或视频播放时默认隐藏，避免误触展开。
 
 ### AI 用量
 
@@ -120,21 +113,70 @@ BrimDeck 平时位于屏幕顶部中央，提供刘海（默认）、胶囊和�
 - 内置深色、浅色、One Dark Pro、GitHub Dark、GitHub Light、Dracula、Night Owl、赛博朋克：边缘行者等主题。
 - 可以在设置的“面板主题”页修改背景、前景、强调色等颜色，并保存为自定义主题；也可以按[主题制作指南](docs/zh-CN/themes.md)编写主题文件。
 
+## 本地补丁
+
+这一版在上游 v1.2.3 之上加的东西；下面的功能说明里已经包含它们，这里只讲与上游的差别。
+
+### 多两条折叠规则
+
+上游按「最大化 / 无边框全屏 / 独占全屏」三种情境决定面板形态。这里加了两种，默认都收成指示条：
+
+- **后台铺满**：前台窗口后面有另一个窗口铺满整块屏幕（最大化，或 F11 那样的无边框全屏）时折叠。
+  这**先问该应用自己的规则**：在「设置 › 窗口行为 › 应用程序规则」里给它配了“保持原有样式”的应用，
+  在后台铺满屏幕时也不会让岛折叠。
+- **触碰即缩**：任意窗口只要有像素压到岛收起后所占的那块区域就折叠——不看它是否全屏、是否贴着屏幕边缘，
+  也不管它是不是当前窗口。这条只看位置，不看应用。
+
+两条规则在「设置 › 窗口行为」里各有下拉框（保持原有样式 / 显示为指示条 / 隐藏），对应
+`settings.json` 的 `BackgroundFullscreen` 与 `Overlapped`。
+
+> 判定用的是岛**静止时的完整区域**（按 `Style` 配置的形态算），不是当前显示的那条细线。
+> 用细线判定的话，缩成细线之后就碰不到原来那个窗口了，会每 400 毫秒来回抖。
+
+### 收起时点击展开
+
+上游靠悬停展开，而指示条只有 4 像素高，稍一移动就会展开又收起。这里改成**点击展开**，并把点击热区放大到
+220×26，细线也点得中。`settings.json` 的 `ClickToExpand` 设为 `false` 可回到悬停展开。
+
+### 指示条形态启动即可见
+
+上游的开机动画是“圆点膨胀成收起形态”，指示条没有可膨胀的余地，会一直停在不透明度 0。这里让指示条直接显示。
+
+### 自定义配额可以是表格
+
+自定义配额来源新增 `kind: "rows"`：一张卡片里上下排多行，每行「名称 · 附注 · 读数」，整张表共用一个网格，
+同一列在每行对齐、缺的留空；带 `percent` 的行旁边有一条小细条，标了 `remaining: true` 就按剩余比例画。
+
+适合“一堆小数字”的来源：一个号一张卡片的话，一页只放得下两张，六个号要翻三页。
+
+### 诊断
+
+`%LOCALAPPDATA%\BrimDeck\context.log` 每次形态变化记一行，含 `ctx=`（判定结果）、`app=`（当时生效的应用）、
+`kind=`（铺满方式，`Maximized` 或 `Borderless`）。排查“这会儿为什么是横条”直接看它。
+
 ## 安装
 
-需要 Windows 11（x64）。对 Windows 10（2004 及以上版本）提供有限支持。
+本仓库**不发布安装包**，需要从源码自行打包。官方版本和安装包请去[上游](https://github.com/MoFeng2223/BrimDeck)。
 
-1. 从 [Releases](https://github.com/MoFeng2223/BrimDeck/releases/latest) 下载以下任一文件：
-   - 安装版：`BrimDeck-<版本>-Setup.exe`，运行后按提示安装。
-   - 免安装版：`BrimDeck-<版本>-Portable-x64.zip`，解压后运行 `BrimDeck` 文件夹中的 `BrimDeck.exe`。
-2. 如出现“Windows 已保护你的电脑”提示，点击“更多信息”→“仍要运行”。
+需要 Windows 11（x64）、[.NET 10 SDK](https://dotnet.microsoft.com/download) 和 PowerShell 7：
 
-两种版本都可以在应用内更新，设置和数据都保存在 `%LOCALAPPDATA%\BrimDeck`。应用内更新默认只提示正式版；在设置的“关于”页开启“接收测试版更新”后，也会提示 Beta 测试版。免安装版放在需要管理员权限才能修改的文件夹（例如 `C:\Program Files`）中时，更新会请求管理员确认。不再使用免安装版时，先在设置中关闭开机自启动（如已开启），再删除它的文件夹；如需同时删除设置和数据，再删除 `%LOCALAPPDATA%\BrimDeck`。
+```powershell
+git clone https://github.com/mozellaxaustelllmt-lgtm/BrimDeck.git
+cd BrimDeck
+pwsh scripts/Publish-Release.ps1 -Version 1.3.13
+```
+
+产物在 `artifacts\releases\`：`BrimDeck-1.3.13-Setup.exe`（运行后按提示安装）和
+`BrimDeck-1.3.13-Portable-x64.zip`（解压后运行 `BrimDeck.exe`）。打包脚本会自己还原 Inno Setup；
+如出现“Windows 已保护你的电脑”提示，点击“更多信息”→“仍要运行”。
+
+设置和数据都在 `%LOCALAPPDATA%\BrimDeck`。应用内更新查的是上游的发布，本地版本号（1.3.x）高于上游，
+所以不会提示你“更新”到旧版。
 
 ## 快速开始
 
 1. 安装并启动 BrimDeck 后，面板会出现在主显示器顶部中央，默认显示 Claude 和 Codex。
-2. 将鼠标移到面板上即可展开，移开鼠标或按 Esc 收起。
+2. 点一下面板即可展开，移开鼠标或按 Esc 收起。
 3. 点击展开面板右上角的设置按钮，即可添加工具或调整设置；也可在展开的面板上点击右键，或双击系统托盘图标、通过托盘图标的右键菜单进入设置。
 
 ## 卸载
@@ -159,12 +201,19 @@ BrimDeck 平时位于屏幕顶部中央，提供刘海（默认）、胶囊和�
 
 ## 参与开发
 
-欢迎通过 [Issues](https://github.com/MoFeng2223/BrimDeck/issues) 反馈问题、提出功能建议，或申请适配更多工具与播放器，也欢迎提交 Pull Request 参与开发。
+这是个人分叉，**不接 Pull Request**。上游的 Issues、Discussions 和路线图在
+[MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck)。
 
-- Pull Request 不要直接合入 `main`：
-  - 新功能和一般修复以 `dev` 分支为目标。
-  - 某个版本进入测试阶段后，会有对应的 `release/<版本>` 分支（例如 `release/1.3.0`）。针对这个版本的问题修复以该分支为目标；该分支只接受问题修复，不接受新功能。
-- 后续规划见 [BrimDeck 路线图](https://github.com/MoFeng2223/BrimDeck/discussions/57)。功能建议可以在帖子下讨论，想认领其中某项功能时，也可以直接在帖子下留言。其他话题可以在 [Discussions](https://github.com/MoFeng2223/BrimDeck/discussions) 中讨论。
+跟随上游：
+
+```bash
+git fetch origin main
+git merge origin/main
+```
+
+合并时注意 `SettingsMigrations`：步骤按**上游版本号**标注，而本分支的版本号已经更高，
+标签比文件记录的版本旧的步骤不会执行。合并后要把新步骤的版本号改成本分支要发的版本，
+并把 `CompactReadingTests` 里的 `Running` 常量一起改。
 
 ## 许可证
 

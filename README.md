@@ -1,15 +1,9 @@
 > **Personal fork, developed on its own line.** `main` is upstream [BrimDeck](https://github.com/MoFeng2223/BrimDeck) v1.2.3
-> plus local patches, currently **1.3.13**. Everything described below comes from upstream and is included; on top of it this
-> build changes:
+> plus local patches, currently **1.3.13**. What differs from upstream: two more fold rules (a window filling the screen
+> behind the front one, and any window reaching the area where the island sits), opening on a click, an Indicator that is
+> visible at startup, and custom quotas that can be shown as one compact table. See [Local changes](#local-changes).
 >
-> - **a window filling the screen behind the foreground** folds the island to its line — maximised, or borderless full screen such as F11
-> - **any window reaching the area where the island sits** folds it too, whether or not it fills the screen, is snapped to an edge, or is the window in front
-> - both folds **ask that app's own rule first**: an app set to keep the panel's style is left alone
-> - the collapsed island **opens on a click** rather than a hover, and its click target is 220×26, so the four-pixel line is easy to hit
-> - quotas show as **one compact table**: credits, then per account its success count, in-flight requests, request count, tokens and remaining credit, in aligned columns on a single page
->
-> This repository **publishes no installers**. For the official build go upstream; to use these patches, build from source
-> (`pwsh scripts/Publish-Release.ps1 -Version 1.3.13`).
+> This repository **publishes no installers**; [Install](#install) covers building it. For the official build go upstream.
 
 <div align="center">
 
@@ -24,12 +18,11 @@ BrimDeck is a Dynamic Island for Windows 11 that brings your AI coding tool quot
 It stays collapsed at the top of the screen and opens only when you need it.<br>
 A native Windows app built with C# and WPF, designed for performance and smoothness.
 
-[![Download](https://img.shields.io/badge/Download-Windows%2011%20x64-9CB9FF?style=flat-square)](https://github.com/MoFeng2223/BrimDeck/releases/latest)
-[![Latest release](https://img.shields.io/github/v/release/MoFeng2223/BrimDeck?style=flat-square&label=Latest&color=98DBB0)](https://github.com/MoFeng2223/BrimDeck/releases/latest)
+![Version](https://img.shields.io/badge/Version-1.3.13-98DBB0?style=flat-square)
 [![License](https://img.shields.io/badge/License-Apache%202.0-E5A385?style=flat-square)](LICENSE)
 ![Interface languages](https://img.shields.io/badge/Interface-English%20%7C%20%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-B9A8FF?style=flat-square)
 
-<p><a href="#features">Features</a> · <a href="#install">Install</a> · <a href="#quick-start">Quick start</a> · <a href="#privacy">Privacy</a> · <a href="#faq">FAQ</a> · <a href="#contributing">Contributing</a> · <a href="README.zh-CN.md">简体中文</a></p>
+<p><a href="#features">Features</a> · <a href="#local-changes">Local changes</a> · <a href="#install">Install</a> · <a href="#quick-start">Quick start</a> · <a href="#privacy">Privacy</a> · <a href="#faq">FAQ</a> · <a href="#contributing">Contributing</a> · <a href="README.zh-CN.md">简体中文</a></p>
 
 <img src="docs/en-US/images/hero.png" width="100%" alt="BrimDeck opens from the notch at the top of the screen into the AI usage panel, switches to the music page and then the system monitor page, then collapses">
 
@@ -38,7 +31,7 @@ A native Windows app built with C# and WPF, designed for performance and smoothn
 ## Why BrimDeck
 
 - **All quotas in one place**: Quotas for Claude, Codex, Cursor, Antigravity and more are shown in a single panel, so you no longer open each website, command line or app to check them.
-- **Quota checks made simple**: BrimDeck stays collapsed at the top of the screen. Move the pointer over it to open it, and move away to close it.
+- **Quota checks made simple**: BrimDeck stays collapsed at the top of the screen. Click it to open it, and move away or press Esc to close it.
 - **Media control**: Preview and control the song that is playing inline; the cover, equalizer and lyrics follow the music.
 - **System monitor**: CPU, memory, network speed and other readings stay in the notch or capsule, visible at a glance.
 - **No interruptions in full screen**: Hides automatically while you play full-screen games or watch full-screen video, so it never opens by accident. Adjustable in settings.
@@ -77,7 +70,7 @@ BrimDeck sits at the top center of the screen and comes in three styles: Notch (
 
 - The size and position of the Notch, Capsule and Indicator can be adjusted in settings.
 
-- By default it turns into the Indicator when a window is maximized, and hides during full-screen games or video so it never opens by accident.
+- By default it turns into the Indicator when a window is maximized or when a window behind the front one fills the screen, and also when any window reaches the area it sits in (see [Local changes](#local-changes)). It hides during full-screen games or video so it never opens by accident.
 
 ### AI usage
 
@@ -121,21 +114,76 @@ The page is adapted from [ftop](https://github.com/Nongfsq/ftop) by Nongfsq (MIT
 - Built-in themes include Dark, Light, One Dark Pro, GitHub Dark, GitHub Light, Dracula, Night Owl and Cyberpunk: Edgerunners.
 - On the Panel theme page in settings, you can change the background, foreground, accent and other colors and save them as a custom theme, or write a theme file by following the [theme guide](docs/en-US/themes.md).
 
+## Local changes
+
+What this build adds on top of upstream v1.2.3. The feature sections below describe it all; this section is only what differs.
+
+### Two more fold rules
+
+Upstream decides the shape from three cases: maximized, borderless full screen and exclusive full screen. This build adds
+two, both folding to the Indicator by default:
+
+- **Filled behind**: another window fills the whole screen behind the one in front — maximized, or borderless full screen
+  such as F11. This one **asks that app's own rule first**: an app given "Keep style" under Settings › Window behavior ›
+  App rules is left alone even while it fills the screen in the background.
+- **Touched**: any window whose pixels reach the area the island occupies when collapsed folds it — whether or not it fills
+  the screen, is snapped to an edge, or is the window in front. This one goes by position only, never by app.
+
+Both appear under Settings › Window behavior with their own choices (keep style / show as indicator / hide), as
+`BackgroundFullscreen` and `Overlapped` in `settings.json`.
+
+> The test uses the island's **whole resting area** — the shape its configured style would take — not the thin line it may
+> be showing. A box that shrank to the line would stop touching the very window that made it fold, and the island would
+> flip every 400 ms.
+
+### Opens on a click
+
+Upstream opens on hover, and the Indicator is four pixels tall, so the smallest movement opens and closes it. Here it opens
+on a click, with a 220×26 click target so the line is easy to hit. Set `ClickToExpand` to `false` in `settings.json` for
+the hover behaviour.
+
+### The Indicator is visible at startup
+
+Upstream's start animation swells a dot into the collapsed shape; the line has no room for that and stays at zero opacity.
+Here the line appears at once.
+
+### A custom quota can be a table
+
+A custom quota source can now return `kind: "rows"`: one card holding a table of lines, each with a name, cells and a
+reading. All lines share one grid, so a column starts at the same place on every line and a line with nothing for a column
+leaves it empty. A line with `percent` gets a short bar beside it, drawn from what is left when it also sets
+`remaining: true`.
+
+It suits a source with many small numbers: one card per account would show two per page, so six accounts cost three page turns.
+
+### Diagnostics
+
+`%LOCALAPPDATA%\BrimDeck\context.log` records a line per shape change with `ctx=` (the context detected), `app=` (the app
+it resolved for) and `kind=` (`Maximized` or `Borderless`). It is the quickest way to see why the island is a line.
+
 ## Install
 
-Requires Windows 11 (x64). Windows 10 (version 2004 or later) has limited support.
+This repository **publishes no installers**; build it from source. The official build and its installers are at [upstream](https://github.com/MoFeng2223/BrimDeck).
 
-1. Download one of these files from [Releases](https://github.com/MoFeng2223/BrimDeck/releases/latest):
-   - Installer: `BrimDeck-<version>-Setup.exe`. Run it and follow the steps.
-   - Portable: `BrimDeck-<version>-Portable-x64.zip`. Extract it and run `BrimDeck.exe` in the `BrimDeck` folder.
-2. If Windows shows "Windows protected your PC", select "More info", then "Run anyway".
+Requires Windows 11 (x64), the [.NET 10 SDK](https://dotnet.microsoft.com/download) and PowerShell 7:
 
-Both versions update from within the app, and both keep settings and data in `%LOCALAPPDATA%\BrimDeck`. The app offers releases only; turn on "Receive beta updates" on the About page of settings to be offered betas too. When the portable version is in a folder that needs administrator rights to change, such as `C:\Program Files`, the update asks for administrator approval. To stop using the portable version, turn off starting with Windows in settings if it is on, then delete its folder; to remove settings and data as well, also delete `%LOCALAPPDATA%\BrimDeck`.
+```powershell
+git clone https://github.com/mozellaxaustelllmt-lgtm/BrimDeck.git
+cd BrimDeck
+pwsh scripts/Publish-Release.ps1 -Version 1.3.13
+```
+
+The artifacts land in `artifacts\releases\`: `BrimDeck-1.3.13-Setup.exe` (run it and follow the steps) and
+`BrimDeck-1.3.13-Portable-x64.zip` (extract it and run `BrimDeck.exe`). The script restores Inno Setup itself. If
+Windows shows "Windows protected your PC", select "More info", then "Run anyway".
+
+Settings and data live in `%LOCALAPPDATA%\BrimDeck`. The in-app update check looks at the upstream releases; this
+branch's version (1.3.x) is higher, so it will not offer to "update" you to an older build.
 
 ## Quick start
 
 1. After you install and start BrimDeck, the panel appears at the top center of the primary display, showing Claude and Codex by default.
-2. Move the pointer over the panel to open it; move away or press Esc to close it.
+2. Click the panel to open it; move away or press Esc to close it.
 3. Select the settings button at the top right of the open panel to add tools or change settings. You can also right-click the open panel, double-click the tray icon, or right-click the tray icon.
 
 ## Uninstall
@@ -160,12 +208,19 @@ No. Costs come from the amounts reported by each service or from public model pr
 
 ## Contributing
 
-You are welcome to report problems, suggest features or ask for more tools and players in [Issues](https://github.com/MoFeng2223/BrimDeck/issues), and to contribute through pull requests.
+This is a personal fork and takes no pull requests. Upstream's issues, discussions and roadmap are at
+[MoFeng2223/BrimDeck](https://github.com/MoFeng2223/BrimDeck).
 
-- Do not open pull requests against `main`:
-  - Open new features and general fixes against the `dev` branch.
-  - When a version enters testing, it gets a `release/<version>` branch (for example `release/1.3.0`). Open fixes for that version against that branch. It accepts fixes only, not new features.
-- Upcoming work is listed in the [BrimDeck roadmap](https://github.com/MoFeng2223/BrimDeck/discussions/57). Suggest features under that post, and reply there when you want to take on one of its items. Other topics are welcome in [Discussions](https://github.com/MoFeng2223/BrimDeck/discussions).
+Following upstream:
+
+```bash
+git fetch origin main
+git merge origin/main
+```
+
+One thing to watch: `SettingsMigrations` labels its steps with the **upstream** version, and this branch's version is
+already higher, so a step labelled below the file's version never runs. Relabel a new step to the version this branch
+builds, and change the `Running` constant in `CompactReadingTests` with it.
 
 ## License
 
